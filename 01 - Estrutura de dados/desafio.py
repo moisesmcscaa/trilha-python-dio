@@ -15,48 +15,62 @@ def menu():
     return input(textwrap.dedent(menu))
 
 
-def depositar(saldo, valor, extrato, /):
-    if valor > 0:
-        saldo += valor
-        extrato += f"Depósito:\tR$ {valor:.2f}\n"
-        print("\n=== Depósito realizado com sucesso! ===")
+def depositar(contas, numero_conta, valor):
+    conta = filtrar_conta(numero_conta, contas)
+
+    if conta:
+        if valor > 0:
+            conta['saldo'] += valor
+            conta['extrato'] += f"Depósito:\tR$ {valor:.2f}\n"
+            print("\n=== Depósito realizado com sucesso! ===")
+        else:
+            print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
     else:
-        print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
-
-    return saldo, extrato
+        print("\n@@@ Conta não encontrada! @@@")
 
 
-def sacar(*, saldo, valor, extrato, limite, numero_saques, limite_saques):
-    excedeu_saldo = valor > saldo
-    excedeu_limite = valor > limite
-    excedeu_saques = numero_saques >= limite_saques
+def sacar(contas, numero_conta, valor, limite, limite_saques):
+    conta = filtrar_conta(numero_conta, contas)
 
-    if excedeu_saldo:
-        print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
+    if conta:
+        saldo = conta['saldo']
+        extrato = conta['extrato']
+        numero_saques = conta['numero_saques']
 
-    elif excedeu_limite:
-        print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
+        excedeu_saldo = valor > saldo
+        excedeu_limite = valor > limite
+        excedeu_saques = numero_saques >= limite_saques
 
-    elif excedeu_saques:
-        print("\n@@@ Operação falhou! Número máximo de saques excedido. @@@")
-
-    elif valor > 0:
-        saldo -= valor
-        extrato += f"Saque:\t\tR$ {valor:.2f}\n"
-        numero_saques += 1
-        print("\n=== Saque realizado com sucesso! ===")
-
+        if excedeu_saldo:
+            print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
+        elif excedeu_limite:
+            print("\n@@@ Operação falhou! O valor do saque excede o limite. @@@")
+        elif excedeu_saques:
+            print("\n@@@ Operação falhou! Número máximo de saques excedido. @@@")
+        elif valor > 0:
+            conta['saldo'] -= valor
+            conta['extrato'] += f"Saque:\t\tR$ {valor:.2f}\n"
+            conta['numero_saques'] += 1
+            print("\n=== Saque realizado com sucesso! ===")
+        else:
+            print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
     else:
-        print("\n@@@ Operação falhou! O valor informado é inválido. @@@")
-
-    return saldo, extrato
+        print("\n@@@ Conta não encontrada! @@@")
 
 
-def exibir_extrato(saldo, /, *, extrato):
-    print("\n================ EXTRATO ================")
-    print("Não foram realizadas movimentações." if not extrato else extrato)
-    print(f"\nSaldo:\t\tR$ {saldo:.2f}")
-    print("==========================================")
+def exibir_extrato(contas, numero_conta):
+    conta = filtrar_conta(numero_conta, contas)
+
+    if conta:
+        saldo = conta['saldo']
+        extrato = conta['extrato']
+
+        print("\n================ EXTRATO ================")
+        print("Não foram realizadas movimentações." if not extrato else extrato)
+        print(f"\nSaldo:\t\tR$ {saldo:.2f}")
+        print("==========================================")
+    else:
+        print("\n@@@ Conta não encontrada! @@@")
 
 
 def criar_usuario(usuarios):
@@ -87,9 +101,15 @@ def criar_conta(agencia, numero_conta, usuarios):
 
     if usuario:
         print("\n=== Conta criada com sucesso! ===")
-        return {"agencia": agencia, "numero_conta": numero_conta, "usuario": usuario}
+        return {"agencia": agencia, "numero_conta": numero_conta, "usuario": usuario, "saldo": 0, "extrato": "",
+                "numero_saques": 0}
 
     print("\n@@@ Usuário não encontrado, fluxo de criação de conta encerrado! @@@")
+
+
+def filtrar_conta(numero_conta, contas):
+    contas_filtradas = [conta for conta in contas if conta["numero_conta"] == numero_conta]
+    return contas_filtradas[0] if contas_filtradas else None
 
 
 def listar_contas(contas):
@@ -107,10 +127,6 @@ def main():
     LIMITE_SAQUES = 3
     AGENCIA = "0001"
 
-    saldo = 0
-    limite = 500
-    extrato = ""
-    numero_saques = 0
     usuarios = []
     contas = []
 
@@ -118,24 +134,20 @@ def main():
         opcao = menu()
 
         if opcao == "d":
+            numero_conta = int(input("Informe o número da conta: "))
             valor = float(input("Informe o valor do depósito: "))
 
-            saldo, extrato = depositar(saldo, valor, extrato)
+            depositar(contas, numero_conta, valor)
 
         elif opcao == "s":
+            numero_conta = int(input("Informe o número da conta: "))
             valor = float(input("Informe o valor do saque: "))
 
-            saldo, extrato = sacar(
-                saldo=saldo,
-                valor=valor,
-                extrato=extrato,
-                limite=limite,
-                numero_saques=numero_saques,
-                limite_saques=LIMITE_SAQUES,
-            )
+            sacar(contas, numero_conta, valor, limite=500, limite_saques=LIMITE_SAQUES)
 
         elif opcao == "e":
-            exibir_extrato(saldo, extrato=extrato)
+            numero_conta = int(input("Informe o número da conta: "))
+            exibir_extrato(contas, numero_conta)
 
         elif opcao == "nu":
             criar_usuario(usuarios)
